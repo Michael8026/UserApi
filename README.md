@@ -1,6 +1,7 @@
 This project implements a secure user authentication system with email confirmation and access token management using ASP.NET Core and Entity Framework Core.
 
 ✨ Features
+
 ✅ User Registration
 Users can register with a valid email and password.
 A confirmation email is sent upon registration. (Still in development my smtp client is down for now ... but i created a confirmation API where you can manually confirm your email till the smtp client comes back online)
