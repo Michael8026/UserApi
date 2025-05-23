@@ -1,5 +1,6 @@
 ﻿using api.Dtos.Account;
 using api.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers
@@ -16,7 +17,7 @@ namespace api.Controllers
             _authService = authService;
         }
 
-
+        [Authorize]
         [HttpGet("all")]
         public async Task<IActionResult> GetAll()
         {
