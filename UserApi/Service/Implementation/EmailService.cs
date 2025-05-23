@@ -13,23 +13,6 @@ public partial class EmailService : IEmailService
     }
 
 
-    //public Task<bool> SendConfirmationMail(TestData user)
-    //{
-
-    //    var EmailData = new EmailData
-    //    {
-    //        FullName = $"{user.FirstName} {user.LastName}",
-    //        To = user.Email,
-    //        Subject = "User Api Account Creation",
-    //        Body = string.Format("Welcome To User Api Portal"),
-    //    };
-
-    //    var success = SendMail(EmailData);
-
-
-    //    return Task.FromResult(success);
-    //}
-
     public Task<bool> SendConfirmationEmail(EmailUserDTO user, string token)
     {
         string confirmationLink = $"http://localhost:5076/confirm-email?token={token}";
