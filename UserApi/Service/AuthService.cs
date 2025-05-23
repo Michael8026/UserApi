@@ -1,8 +1,10 @@
-﻿using api.Dtos.Account;
+﻿using api.Data;
+using api.Dtos.Account;
 using api.Interfaces;
 using api.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using static api.Helpers.CommunicationData;
 
 namespace api.Service
 {
@@ -10,6 +12,8 @@ namespace api.Service
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly ITokenService _tokenService;
+        private readonly IEmailService _emailService;
+        private readonly ApplicationDbContext _context;
         private readonly IUserProfileRepository _userProfileRepository;
         private readonly SignInManager<AppUser> _signInManager;
 
@@ -17,12 +21,14 @@ namespace api.Service
             UserManager<AppUser> userManager,
             ITokenService tokenService,
             IUserProfileRepository userProfileRepository,
-            SignInManager<AppUser> signInManager)
+            SignInManager<AppUser> signInManager, IEmailService emailService, ApplicationDbContext context)
         {
             _userManager = userManager;
             _tokenService = tokenService;
             _userProfileRepository = userProfileRepository;
             _signInManager = signInManager;
+            _emailService = emailService;
+            _context = context;
         }
 
         public async Task<IEnumerable<UserProfile>> GetAllUsersAsync()
@@ -67,12 +73,26 @@ namespace api.Service
 
             await _userProfileRepository.CreateAsync(userProfile);
 
-            var token = _tokenService.CreateToken(appUser);
+            //Generate confirmation token
+            var confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
+
+
+            var emailUser = new EmailUserDTO
+            {
+                Email = registerDto.Email,
+                FirstName = registerDto.FirstName,
+                LastName = registerDto.LastName,
+            };
+
+            //await _emailService.SendConfirmationEmail(emailUser, confirmationToken);
+
+            //var token = _tokenService.CreateToken(appUser);
 
             var newUser = new NewUserDto
             {
                 Email = appUser.Email,
-                Token = token
+                //Token = "Check your email for a confirmation link "
+                Token = confirmationToken
             };
 
 
@@ -90,6 +110,9 @@ namespace api.Service
 
             if (!result.Succeeded)
                 return null;
+
+            if (!user.EmailConfirmed)
+                throw new UnauthorizedAccessException("Please confirm your email before logging in.");
 
             return new NewUserDto
             {
@@ -150,6 +173,63 @@ namespace api.Service
 
             return user;
         }
+
+        public async Task<string> ConfirmEmailAsync(string email, string token)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+                return "User not found";
+
+            if (user.EmailConfirmed)
+                return "Email is already confirmed.";
+
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+            if (result.Succeeded)
+                return "Email confirmed successfully.";
+
+            return "Email confirmation failed.";
+        }
+
+        public async Task<AccessToken> GenerateAndStoreAccessTokenAsync(string email, DateTime expiry)
+        {
+            if (expiry <= DateTime.UtcNow)
+                throw new ArgumentException("Expiry must be in the future.");
+
+            if ((expiry - DateTime.UtcNow).TotalDays > 3)
+                throw new ArgumentException("Expiry cannot be more than 3 days.");
+
+            var token = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
+
+            var accessToken = new AccessToken
+            {
+                Token = token,
+                Email = email,
+                Expiry = expiry
+            };
+
+            _context.AccessTokens.Add(accessToken);
+            await _context.SaveChangesAsync();
+
+            return accessToken;
+        }
+
+        public async Task<string> VerifyAccessTokenAsync(string token, string userEmail)
+        {
+            if (string.IsNullOrWhiteSpace(token) || token.Length != 6)
+                return "Invalid token format";
+
+            var accessToken = await _context.AccessTokens
+                .FirstOrDefaultAsync(t => t.Token == token && t.Email.ToLower() == userEmail.ToLower());
+
+            if (accessToken == null)
+                return "Token not found or not assigned to this user";
+
+            if (accessToken.Expiry <= DateTime.UtcNow)
+                return "Token has expired";
+
+            return "Token is valid";
+        }
+
 
 
 

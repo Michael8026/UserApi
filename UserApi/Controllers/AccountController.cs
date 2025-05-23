@@ -107,8 +107,54 @@ namespace api.Controllers
         }
 
 
+        [HttpGet("confirm_email")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string email, [FromQuery] string token)
+        {
+            var resultMessage = await _authService.ConfirmEmailAsync(email, token);
+
+            if (resultMessage == "Email confirmed successfully.")
+                return Ok(resultMessage);
+
+            return BadRequest(resultMessage);
+        }
 
 
+        [Authorize]
+        [HttpPost("generate_access_token")]
+        public async Task<IActionResult> GenerateToken([FromQuery] string email, [FromQuery] DateTime expiry)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var token = await _authService.GenerateAndStoreAccessTokenAsync(email, expiry);
+                return Ok(token);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "An error occurred while generating the token.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("verify_access_token")]
+        public async Task<IActionResult> VerifyToken([FromQuery] string token, [FromQuery] string email)
+        {
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(email))
+                return BadRequest("Token and email are required.");
+
+            var result = await _authService.VerifyAccessTokenAsync(token, email);
+
+            if (result != "Token is valid")
+                return BadRequest(result);
+
+            return Ok(result);
+        }
 
 
 

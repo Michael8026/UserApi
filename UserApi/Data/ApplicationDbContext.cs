@@ -13,6 +13,8 @@ namespace api.Data
         }
 
         public DbSet<UserProfile> UserProfiles { get; set; }
+        public DbSet<RouteEmailParam> RouteEmailParams { get; set; }
+        public DbSet<AccessToken> AccessTokens { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder builder)
